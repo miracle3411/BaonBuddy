@@ -40,6 +40,11 @@
         }
       ],
       "expo-notifications"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "a74f8015-d467-4560-b323-8bd9ef8b8d20"
+      }
+    }
   }
 }
