@@ -1,8 +1,14 @@
 // src/hooks/usePro.ts
 import { useEffect, useState } from 'react';
-import Purchases from 'react-native-purchases';
 
-const ENTITLEMENT_ID = 'pro'; // Must match your RevenueCat entitlement ID exactly
+let Purchases: any = null;
+try {
+  Purchases = require('react-native-purchases').default;
+} catch {
+  // Native module not available (e.g. running in Expo Go)
+}
+
+const ENTITLEMENT_ID = 'pro';
 
 export function usePro() {
   const [isPro, setIsPro] = useState(false);
@@ -13,10 +19,14 @@ export function usePro() {
   }, []);
 
   async function checkProStatus() {
+    if (!Purchases) {
+      setIsLoading(false);
+      return;
+    }
     try {
       const customerInfo = await Purchases.getCustomerInfo();
       setIsPro(customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined);
-    } catch (e) {
+    } catch {
       setIsPro(false);
     } finally {
       setIsLoading(false);
@@ -24,6 +34,7 @@ export function usePro() {
   }
 
   async function purchasePro() {
+    if (!Purchases) return false;
     try {
       const offerings = await Purchases.getOfferings();
       const monthly = offerings.current?.monthly;
@@ -31,17 +42,18 @@ export function usePro() {
       await Purchases.purchasePackage(monthly);
       await checkProStatus();
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }
 
   async function restorePurchases() {
+    if (!Purchases) return false;
     try {
       await Purchases.restorePurchases();
       await checkProStatus();
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   }

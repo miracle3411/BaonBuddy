@@ -14,8 +14,11 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/colors';
 import { CATEGORIES } from '../../constants/categories';
 import { ExpenseCategory, Expense } from '../../types';
-import { addExpense, getActivePeriod, getExpensesForPeriod } from '../../storage/storage';
+import { addExpense, updateExpense, deleteExpense, getActivePeriod, getExpensesForPeriod } from '../../storage/storage';
 import { calculateBudgetStatus } from '../../utils/budget';
+import { sendOverspendAlert } from '../../hooks/useNotifications';
+import { useTheme } from '../../hooks/useTheme';
+import { useLanguage } from '../../hooks/useLanguage';
 
 type Props = NativeStackScreenProps<any, 'AddExpense'>;
 
@@ -24,6 +27,8 @@ function generateId(): string {
 }
 
 export default function AddExpenseScreen({ navigation, route }: Props) {
+  const { colors } = useTheme();
+  const { t } = useLanguage();
   const editExpense = route.params?.expense as Expense | undefined;
   const isEdit = !!editExpense;
 
@@ -45,42 +50,70 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
     setSaving(true);
 
     try {
-      const activePeriod = await getActivePeriod();
-      if (!activePeriod) {
-        Alert.alert('Error', 'Walang active na baon period.');
-        setSaving(false);
-        return;
-      }
+      if (isEdit) {
+        const updated: Expense = {
+          id: editExpense!.id,
+          periodId: editExpense!.periodId,
+          amount: numericAmount,
+          category: category!,
+          note: note.trim(),
+          date,
+          createdAt: editExpense!.createdAt,
+        };
+        await updateExpense(updated);
+      } else {
+        const activePeriod = await getActivePeriod();
+        if (!activePeriod) {
+          Alert.alert(t('error'), t('noActivePeriod'));
+          setSaving(false);
+          return;
+        }
 
-      const expense: Expense = {
-        id: generateId(),
-        periodId: activePeriod.id,
-        amount: numericAmount,
-        category: category!,
-        note: note.trim(),
-        date,
-        createdAt: new Date().toISOString(),
-      };
+        const expense: Expense = {
+          id: generateId(),
+          periodId: activePeriod.id,
+          amount: numericAmount,
+          category: category!,
+          note: note.trim(),
+          date,
+          createdAt: new Date().toISOString(),
+        };
 
-      await addExpense(expense);
+        await addExpense(expense);
 
-      // Check if overspending after adding
-      const allExpenses = await getExpensesForPeriod(activePeriod.id);
-      const status = calculateBudgetStatus(activePeriod, allExpenses);
-      if (status.isOverspending) {
-        // In Phase 2 we'll trigger a push notification here
+        // Check if overspending after adding
+        const allExpenses = await getExpensesForPeriod(activePeriod.id);
+        const status = calculateBudgetStatus(activePeriod, allExpenses);
+        if (status.isOverspending) {
+          await sendOverspendAlert(status.totalSpent);
+        }
       }
 
       navigation.goBack();
     } catch (e) {
-      Alert.alert('Error', 'Hindi mai-save. Subukan ulit.');
+      Alert.alert(t('error'), t('savingError'));
       setSaving(false);
     }
   }
 
+  function handleDelete() {
+    if (!editExpense) return;
+    Alert.alert(t('confirmDeleteTitle'), t('confirmDelete'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('delete'),
+        style: 'destructive',
+        onPress: async () => {
+          await deleteExpense(editExpense.id);
+          navigation.goBack();
+        },
+      },
+    ]);
+  }
+
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
@@ -91,18 +124,18 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
         <View style={styles.amountSection}>
           <Text style={styles.currency}>₱</Text>
           <TextInput
-            style={styles.amountInput}
+            style={[styles.amountInput, { color: colors.text }]}
             value={amount}
             onChangeText={setAmount}
             keyboardType="numeric"
             placeholder="0"
-            placeholderTextColor={Colors.border}
+            placeholderTextColor={colors.border}
             autoFocus
           />
         </View>
 
         {/* Category grid */}
-        <Text style={styles.label}>Kategorya</Text>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>{t('categoryLabel')}</Text>
         <View style={styles.categoryGrid}>
           {CATEGORIES.map((cat) => {
             const isSelected = category === cat.key;
@@ -111,6 +144,7 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
                 key={cat.key}
                 style={[
                   styles.categoryCard,
+                  { borderColor: colors.border },
                   isSelected && { borderColor: cat.color, backgroundColor: cat.color + '15' },
                 ]}
                 onPress={() => setCategory(cat.key)}
@@ -120,6 +154,7 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
                 <Text
                   style={[
                     styles.categoryLabel,
+                    { color: colors.text },
                     isSelected && { color: cat.color, fontWeight: '700' },
                   ]}
                 >
@@ -131,25 +166,25 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
         </View>
 
         {/* Note */}
-        <Text style={styles.label}>Note</Text>
+        <Text style={[styles.label, { color: colors.textSecondary }]}>{t('noteLabel')}</Text>
         <TextInput
-          style={styles.noteInput}
+          style={[styles.noteInput, { color: colors.text, borderColor: colors.border }]}
           value={note}
           onChangeText={setNote}
-          placeholder="Ano ito? (optional)"
-          placeholderTextColor={Colors.border}
+          placeholder={t('whatIsThis')}
+          placeholderTextColor={colors.border}
           returnKeyType="done"
         />
 
         {/* Date display */}
         <View style={styles.dateRow}>
-          <Text style={styles.dateLabel}>Petsa:</Text>
-          <Text style={styles.dateValue}>{date}</Text>
+          <Text style={[styles.dateLabel, { color: colors.textSecondary }]}>{t('dateLabel')}</Text>
+          <Text style={[styles.dateValue, { color: colors.text }]}>{date}</Text>
         </View>
       </ScrollView>
 
-      {/* Save button */}
-      <View style={styles.bottomBar}>
+      {/* Save + Delete buttons */}
+      <View style={[styles.bottomBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
         <TouchableOpacity
           style={[styles.saveButton, (!isValid || saving) && styles.saveButtonDisabled]}
           onPress={handleSave}
@@ -157,9 +192,18 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
           activeOpacity={0.8}
         >
           <Text style={styles.saveButtonText}>
-            {saving ? 'Saving...' : 'I-save'}
+            {saving ? t('loading') : isEdit ? t('saveChanges') : t('saveExpense')}
           </Text>
         </TouchableOpacity>
+        {isEdit && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDelete}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.deleteButtonText}>{t('deleteExpense')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -274,6 +318,17 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: Colors.white,
     fontSize: 18,
+    fontWeight: '600',
+  },
+  deleteButton: {
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  deleteButtonText: {
+    color: Colors.meterRed,
+    fontSize: 16,
     fontWeight: '600',
   },
 });

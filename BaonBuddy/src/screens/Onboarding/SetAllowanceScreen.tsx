@@ -2,10 +2,14 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/colors';
+import { useTheme } from '../../hooks/useTheme';
+import { useLanguage } from '../../hooks/useLanguage';
 
 type Props = NativeStackScreenProps<any, 'SetAllowance'>;
 
 export default function SetAllowanceScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const { t } = useLanguage();
   const [amount, setAmount] = useState('');
 
   const numericAmount = parseFloat(amount) || 0;
@@ -13,21 +17,21 @@ export default function SetAllowanceScreen({ navigation }: Props) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>Magkano ang baon mo?</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{t('howMuchAllowance')}</Text>
 
         <View style={styles.inputRow}>
           <Text style={styles.currency}>₱</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { color: colors.text }]}
             value={amount}
             onChangeText={setAmount}
             keyboardType="numeric"
             placeholder="0"
-            placeholderTextColor={Colors.border}
+            placeholderTextColor={colors.border}
             autoFocus
           />
         </View>
@@ -39,7 +43,7 @@ export default function SetAllowanceScreen({ navigation }: Props) {
         disabled={!isValid}
         activeOpacity={0.8}
       >
-        <Text style={styles.buttonText}>Susunod</Text>
+        <Text style={styles.buttonText}>{t('next')}</Text>
       </TouchableOpacity>
     </KeyboardAvoidingView>
   );
@@ -48,7 +52,6 @@ export default function SetAllowanceScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
     paddingHorizontal: 32,
     paddingBottom: 48,
   },
@@ -60,7 +63,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: Colors.dark,
     marginBottom: 32,
     textAlign: 'center',
   },
@@ -77,7 +79,6 @@ const styles = StyleSheet.create({
   input: {
     fontSize: 48,
     fontWeight: '700',
-    color: Colors.dark,
     minWidth: 120,
     textAlign: 'center',
   },

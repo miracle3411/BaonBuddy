@@ -2,17 +2,22 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/colors';
+import { useTheme } from '../../hooks/useTheme';
+import { useLanguage } from '../../hooks/useLanguage';
 
 type Props = NativeStackScreenProps<any, 'Welcome'>;
 
 export default function WelcomeScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const { t } = useLanguage();
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
         <Text style={styles.emoji}>💰</Text>
         <Text style={styles.title}>Baon Buddy</Text>
-        <Text style={styles.tagline}>
-          Alam mo ba kung kaya ng baon mo hanggang Friday?
+        <Text style={[styles.tagline, { color: colors.textSecondary }]}>
+          {t('welcomeTagline')}
         </Text>
       </View>
 
@@ -21,7 +26,7 @@ export default function WelcomeScreen({ navigation }: Props) {
         onPress={() => navigation.navigate('SetAllowance')}
         activeOpacity={0.8}
       >
-        <Text style={styles.buttonText}>Magsimula na</Text>
+        <Text style={styles.buttonText}>{t('getStarted')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -30,7 +35,6 @@ export default function WelcomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
     paddingHorizontal: 32,
     paddingBottom: 48,
     justifyContent: 'center',
@@ -52,7 +56,6 @@ const styles = StyleSheet.create({
   },
   tagline: {
     fontSize: 18,
-    color: Colors.gray,
     textAlign: 'center',
     lineHeight: 26,
     paddingHorizontal: 16,

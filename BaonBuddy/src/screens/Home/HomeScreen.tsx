@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,19 +6,31 @@ import {
   TouchableOpacity,
   FlatList,
   Alert,
+  Platform,
+  StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { format, parseISO, isToday } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { Colors } from '../../constants/colors';
 import { CATEGORIES } from '../../constants/categories';
 import { AllowancePeriod, Expense, BudgetStatus } from '../../types';
 import { getActivePeriod, getExpensesForPeriod, deleteExpense } from '../../storage/storage';
 import { calculateBudgetStatus } from '../../utils/budget';
+import { useTheme } from '../../hooks/useTheme';
+import { useLanguage } from '../../hooks/useLanguage';
+import { AdBanner } from '../../components/AdBanner';
+import { showResetFlow } from '../../utils/resetPeriod';
+import * as StoreReview from 'expo-store-review';
+import ShareSummaryView from './ShareSummaryView';
+import { shareReport } from '../../utils/shareReport';
 
 type Props = { navigation: any };
 
 export default function HomeScreen({ navigation }: Props) {
+  const { colors } = useTheme();
+  const { t, lang } = useLanguage();
+  const shareRef = useRef<View>(null) as React.RefObject<View>;
   const [period, setPeriod] = useState<AllowancePeriod | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [budget, setBudget] = useState<BudgetStatus | null>(null);
@@ -38,7 +50,19 @@ export default function HomeScreen({ navigation }: Props) {
       if (activePeriod) {
         const periodExpenses = await getExpensesForPeriod(activePeriod.id);
         setExpenses(periodExpenses);
-        setBudget(calculateBudgetStatus(activePeriod, periodExpenses));
+        const status = calculateBudgetStatus(activePeriod, periodExpenses);
+        setBudget(status);
+
+        // Trigger in-app review on 7-day streak
+        if (status.currentStreak === 7) {
+          try {
+            if (await StoreReview.hasAction()) {
+              await StoreReview.requestReview();
+            }
+          } catch {
+            // Review prompt not available
+          }
+        }
       }
     } catch (e) {
       // silent fail — data will show empty state
@@ -48,10 +72,10 @@ export default function HomeScreen({ navigation }: Props) {
   }
 
   function handleDeleteExpense(id: string) {
-    Alert.alert('I-delete?', 'Sigurado ka bang gusto mong i-delete ito?', [
-      { text: 'Hindi', style: 'cancel' },
+    Alert.alert(t('deleteExpense'), t('confirmDelete'), [
+      { text: t('cancel'), style: 'cancel' },
       {
-        text: 'I-delete',
+        text: t('delete'),
         style: 'destructive',
         onPress: async () => {
           await deleteExpense(id);
@@ -69,28 +93,28 @@ export default function HomeScreen({ navigation }: Props) {
   const todayExpenses = expenses.filter((e) => e.date === todayStr);
 
   const meterColors = {
-    green: { bg: Colors.meterGreenBg, fill: Colors.meterGreen, label: 'On track \u2713' },
-    yellow: { bg: Colors.meterYellowBg, fill: Colors.meterYellow, label: 'Mag-ingat na \u26A0\uFE0F' },
-    red: { bg: Colors.meterRedBg, fill: Colors.meterRed, label: 'Sobra na! \u274C' },
+    green: { bg: Colors.meterGreenBg, fill: Colors.meterGreen, label: t('onTrack') },
+    yellow: { bg: Colors.meterYellowBg, fill: Colors.meterYellow, label: t('beCareful') },
+    red: { bg: Colors.meterRedBg, fill: Colors.meterRed, label: t('overBudget') },
   };
 
   if (loading) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.loadingText}>Loading...</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.loadingText, { color: colors.textSecondary }]}>Loading...</Text>
       </View>
     );
   }
 
   if (!period) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.emptyTitle}>Walang active na baon period</Text>
+      <View style={[styles.centered, { backgroundColor: colors.background }]}>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>{t('noActivePeriod')}</Text>
         <TouchableOpacity
           style={styles.setupButton}
           onPress={() => navigation.navigate('SetAllowanceModal')}
         >
-          <Text style={styles.setupButtonText}>I-setup ang baon mo</Text>
+          <Text style={styles.setupButtonText}>{t('setupAllowance')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -100,13 +124,27 @@ export default function HomeScreen({ navigation }: Props) {
   const fillWidth = Math.min(100, budget?.percentUsed ?? 0);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Baon Buddy</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-          <Ionicons name="settings-outline" size={24} color={Colors.gray} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={async () => {
+              try {
+                await shareReport(shareRef);
+              } catch {
+                Alert.alert(t('error'), t('shareError'));
+              }
+            }}
+            style={{ marginRight: 12 }}
+          >
+            <Ionicons name="share-outline" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
+            <Ionicons name="settings-outline" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <FlatList
@@ -116,7 +154,7 @@ export default function HomeScreen({ navigation }: Props) {
         ListHeaderComponent={
           <View>
             {/* Period label */}
-            <Text style={styles.periodLabel}>
+            <Text style={[styles.periodLabel, { color: colors.textSecondary }]}>
               {format(parseISO(period.startDate), 'MMM d')} –{' '}
               {format(parseISO(period.endDate), 'MMM d')}
             </Text>
@@ -125,20 +163,20 @@ export default function HomeScreen({ navigation }: Props) {
             {isPeriodExpired && (
               <TouchableOpacity
                 style={styles.expiredBanner}
-                onPress={() => navigation.navigate('Settings')}
+                onPress={() => showResetFlow(period!, expenses, loadData)}
               >
                 <Text style={styles.expiredText}>
-                  Tapos na ang period mo. Mag-reset na!
+                  {t('periodExpired')}
                 </Text>
               </TouchableOpacity>
             )}
 
             {/* Remaining balance */}
-            <Text style={styles.balance}>
+            <Text style={[styles.balance, { color: colors.text }]}>
               ₱ {(budget?.remaining ?? 0).toFixed(2)}
             </Text>
-            <Text style={styles.daysLeft}>
-              {budget?.daysLeft} day{budget?.daysLeft !== 1 ? 's' : ''} left
+            <Text style={[styles.daysLeft, { color: colors.textSecondary }]}>
+              {budget?.daysLeft} {budget?.daysLeft !== 1 ? t('daysLeft') : t('dayLeft')}
             </Text>
 
             {/* Meter */}
@@ -155,10 +193,10 @@ export default function HomeScreen({ navigation }: Props) {
             </Text>
 
             {/* Safe to spend */}
-            <View style={styles.safeCard}>
-              <Text style={styles.safeLabel}>Safe to spend:</Text>
-              <Text style={styles.safeAmount}>
-                ₱{(budget?.dailySafeToSpend ?? 0).toFixed(2)}/day
+            <View style={[styles.safeCard, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.safeLabel, { color: colors.textSecondary }]}>{t('safeToSpend')}</Text>
+              <Text style={[styles.safeAmount, { color: colors.text }]}>
+                ₱{(budget?.dailySafeToSpend ?? 0).toFixed(2)}{t('perDay')}
               </Text>
             </View>
 
@@ -166,9 +204,8 @@ export default function HomeScreen({ navigation }: Props) {
             {budget?.isOverspending && (
               <View style={styles.overspendBanner}>
                 <Text style={styles.overspendText}>
-                  Sobra na ang gastos mo ngayon! ₱
-                  {((budget.totalSpent - budget.totalBudget)).toFixed(2)} over
-                  budget.
+                  {t('overspendWarning')} ₱
+                  {((budget.totalSpent - budget.totalBudget)).toFixed(2)} {t('overBudgetBy')}
                 </Text>
               </View>
             )}
@@ -177,19 +214,19 @@ export default function HomeScreen({ navigation }: Props) {
             {(budget?.currentStreak ?? 0) > 0 && (
               <View style={styles.streakCard}>
                 <Text style={styles.streakText}>
-                  🔥 {budget?.currentStreak}-day streak — on budget!
+                  🔥 {budget?.currentStreak}{t('streakLabel')}
                 </Text>
               </View>
             )}
 
             {/* Today's expenses header */}
-            <Text style={styles.sectionTitle}>Gastos Ngayon</Text>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>{t('todayExpenses')}</Text>
           </View>
         }
         ListEmptyComponent={
           <View style={styles.emptyExpenses}>
-            <Text style={styles.emptyExpensesText}>
-              Wala pang gastos ngayon. I-add na!
+            <Text style={[styles.emptyExpensesText, { color: colors.textSecondary }]}>
+              {t('noExpensesToday')}
             </Text>
           </View>
         }
@@ -197,7 +234,7 @@ export default function HomeScreen({ navigation }: Props) {
           const cat = CATEGORIES.find((c) => c.key === item.category);
           return (
             <TouchableOpacity
-              style={styles.expenseRow}
+              style={[styles.expenseRow, { borderBottomColor: colors.border }]}
               onPress={() =>
                 navigation.navigate('AddExpense', { expense: item })
               }
@@ -206,13 +243,13 @@ export default function HomeScreen({ navigation }: Props) {
               <View style={styles.expenseLeft}>
                 <Text style={styles.expenseEmoji}>{cat?.emoji ?? '📦'}</Text>
                 <View>
-                  <Text style={styles.expenseCat}>{cat?.label ?? item.category}</Text>
+                  <Text style={[styles.expenseCat, { color: colors.text }]}>{cat?.label ?? item.category}</Text>
                   {item.note ? (
-                    <Text style={styles.expenseNote}>{item.note}</Text>
+                    <Text style={[styles.expenseNote, { color: colors.textSecondary }]}>{item.note}</Text>
                   ) : null}
                 </View>
               </View>
-              <Text style={styles.expenseAmount}>
+              <Text style={[styles.expenseAmount, { color: colors.text }]}>
                 ₱{item.amount.toFixed(2)}
               </Text>
             </TouchableOpacity>
@@ -229,6 +266,18 @@ export default function HomeScreen({ navigation }: Props) {
       >
         <Ionicons name="add" size={32} color={Colors.white} />
       </TouchableOpacity>
+
+      {/* AdBanner */}
+      <View style={styles.adBannerWrap}>
+        <AdBanner />
+      </View>
+
+      {/* Off-screen share summary view */}
+      {period && (
+        <View style={styles.offScreen}>
+          <ShareSummaryView ref={shareRef} period={period} expenses={expenses} lang={lang} />
+        </View>
+      )}
     </View>
   );
 }
@@ -271,7 +320,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 12,
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 40) + 8 : 12,
     paddingBottom: 8,
   },
   headerTitle: {
@@ -281,7 +330,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 100,
+    paddingBottom: 160,
   },
   periodLabel: {
     fontSize: 14,
@@ -422,7 +471,7 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 24,
+    bottom: 90,
     right: 20,
     width: 60,
     height: 60,
@@ -435,5 +484,20 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 5,
+  },
+  adBannerWrap: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  offScreen: {
+    position: 'absolute',
+    left: -9999,
+    top: -9999,
   },
 });

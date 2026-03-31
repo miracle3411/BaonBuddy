@@ -5,10 +5,24 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
-import Purchases from 'react-native-purchases';
+let Purchases: any = null;
+try {
+  Purchases = require('react-native-purchases').default;
+} catch {
+  // Native module not available in Expo Go
+}
+let Notifications: any = null;
+try {
+  Notifications = require('expo-notifications');
+} catch {
+  // Not available in Expo Go
+}
 
 import { Colors } from './src/constants/colors';
 import { getSettings } from './src/storage/storage';
+import { ThemeProvider, useTheme } from './src/hooks/useTheme';
+import { LanguageProvider } from './src/hooks/useLanguage';
+import { requestPermissions } from './src/hooks/useNotifications';
 
 // Screens
 import WelcomeScreen from './src/screens/Onboarding/WelcomeScreen';
@@ -18,7 +32,27 @@ import HomeScreen from './src/screens/Home/HomeScreen';
 import AddExpenseScreen from './src/screens/AddExpense/AddExpenseScreen';
 import HistoryScreen from './src/screens/History/HistoryScreen';
 import GoalsScreen from './src/screens/Goals/GoalsScreen';
+import AddGoalScreen from './src/screens/Goals/AddGoalScreen';
 import SettingsScreen from './src/screens/Settings/SettingsScreen';
+import AnalyticsScreen from './src/screens/Analytics/AnalyticsScreen';
+import UpgradeScreen from './src/screens/Upgrade/UpgradeScreen';
+
+// Notification handler
+if (Notifications) {
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
+  } catch {
+    // Not available in Expo Go
+  }
+}
 
 const OnboardingStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -35,14 +69,17 @@ function OnboardingNavigator() {
 }
 
 function TabNavigator() {
+  const { colors, isDark } = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: Colors.purple,
-        tabBarInactiveTintColor: Colors.gray,
+        tabBarInactiveTintColor: colors.textSecondary,
         tabBarStyle: {
-          borderTopColor: Colors.grayLight,
+          backgroundColor: colors.background,
+          borderTopColor: colors.border,
           paddingBottom: 4,
           height: 56,
         },
@@ -65,6 +102,8 @@ function TabNavigator() {
 }
 
 function MainNavigator() {
+  const { colors } = useTheme();
+
   return (
     <RootStack.Navigator>
       <RootStack.Screen
@@ -75,9 +114,44 @@ function MainNavigator() {
       <RootStack.Screen
         name="AddExpense"
         component={AddExpenseScreen}
-        options={{
-          title: 'Bagong Gastos',
+        options={({ route }: any) => ({
+          title: route.params?.expense ? 'I-edit ang Gastos' : 'Bagong Gastos',
           headerTintColor: Colors.purple,
+          headerStyle: { backgroundColor: colors.background },
+          headerTitleStyle: { color: colors.text },
+          presentation: 'modal',
+        })}
+      />
+      <RootStack.Screen
+        name="AddGoal"
+        component={AddGoalScreen}
+        options={{
+          title: 'Bagong Goal',
+          headerTintColor: Colors.purple,
+          headerStyle: { backgroundColor: colors.background },
+          headerTitleStyle: { color: colors.text },
+          presentation: 'modal',
+        }}
+      />
+      <RootStack.Screen
+        name="Analytics"
+        component={AnalyticsScreen}
+        options={{
+          title: 'Analytics',
+          headerTintColor: Colors.purple,
+          headerStyle: { backgroundColor: colors.background },
+          headerTitleStyle: { color: colors.text },
+          presentation: 'modal',
+        }}
+      />
+      <RootStack.Screen
+        name="Upgrade"
+        component={UpgradeScreen}
+        options={{
+          title: 'Baon Buddy Pro',
+          headerTintColor: Colors.purple,
+          headerStyle: { backgroundColor: colors.background },
+          headerTitleStyle: { color: colors.text },
           presentation: 'modal',
         }}
       />
@@ -85,14 +159,24 @@ function MainNavigator() {
   );
 }
 
-export default function App() {
+function AppContent() {
+  const { colors, isDark } = useTheme();
   const [isLoading, setIsLoading] = useState(true);
   const [hasOnboarded, setHasOnboarded] = useState(false);
 
   useEffect(() => {
-    // Configure RevenueCat
-    const REVENUECAT_GOOGLE_KEY = 'test_zErSzrKALOdeWQJRdVnFimSmrZL';
-    Purchases.configure({ apiKey: REVENUECAT_GOOGLE_KEY });
+    // Configure RevenueCat (only if native module available)
+    try {
+      if (Purchases) {
+        const REVENUECAT_GOOGLE_KEY = 'test_zErSzrKALOdeWQJRdVnFimSmrZL';
+        Purchases.configure({ apiKey: REVENUECAT_GOOGLE_KEY });
+      }
+    } catch {
+      // RevenueCat not available in Expo Go
+    }
+
+    // Request notification permissions
+    requestPermissions();
 
     // Check onboarding status
     checkOnboarding();
@@ -111,7 +195,7 @@ export default function App() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.white }}>
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
         <ActivityIndicator size="large" color={Colors.purple} />
       </View>
     );
@@ -119,7 +203,7 @@ export default function App() {
 
   return (
     <NavigationContainer>
-      <StatusBar style="auto" />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
         {!hasOnboarded ? (
           <RootStack.Screen name="Onboarding" component={OnboardingNavigator} />
@@ -127,5 +211,15 @@ export default function App() {
         <RootStack.Screen name="Main" component={MainNavigator} />
       </RootStack.Navigator>
     </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
+    <ThemeProvider>
+      <LanguageProvider>
+        <AppContent />
+      </LanguageProvider>
+    </ThemeProvider>
   );
 }

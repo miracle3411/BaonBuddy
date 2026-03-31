@@ -5,20 +5,11 @@ import { Colors } from '../../constants/colors';
 import { AllowancePeriod } from '../../types';
 import { savePeriods, saveSettings } from '../../storage/storage';
 import { getNextPeriodDates } from '../../utils/budget';
+import { useTheme } from '../../hooks/useTheme';
+import { useLanguage } from '../../hooks/useLanguage';
+import { scheduleDailyReminder, scheduleResetReminder, requestPermissions } from '../../hooks/useNotifications';
 
 type Frequency = 'weekly' | 'biweekly' | 'monthly';
-
-interface FrequencyOption {
-  key: Frequency;
-  label: string;
-  sublabel: string;
-}
-
-const FREQUENCY_OPTIONS: FrequencyOption[] = [
-  { key: 'weekly',   label: 'Linggu-linggo',  sublabel: 'Weekly' },
-  { key: 'biweekly', label: 'Tuwing 2 Linggo', sublabel: 'Every 2 Weeks' },
-  { key: 'monthly',  label: 'Buwanan',         sublabel: 'Monthly' },
-];
 
 type Props = NativeStackScreenProps<any, 'SetResetDate'>;
 
@@ -27,6 +18,8 @@ function generateId(): string {
 }
 
 export default function SetResetDateScreen({ navigation, route }: Props) {
+  const { colors } = useTheme();
+  const { t } = useLanguage();
   const amount = route.params?.amount as number;
   const [selected, setSelected] = useState<Frequency>('weekly');
   const [loading, setLoading] = useState(false);
@@ -50,6 +43,11 @@ export default function SetResetDateScreen({ navigation, route }: Props) {
       await savePeriods([newPeriod]);
       await saveSettings({ hasCompletedOnboarding: true });
 
+      // Schedule notifications
+      await requestPermissions();
+      await scheduleDailyReminder('20:00');
+      await scheduleResetReminder(endDate);
+
       navigation.reset({
         index: 0,
         routes: [{ name: 'Main' }],
@@ -61,15 +59,20 @@ export default function SetResetDateScreen({ navigation, route }: Props) {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
-        <Text style={styles.title}>Kailan mag-rereload ang baon mo?</Text>
+        <Text style={[styles.title, { color: colors.text }]}>{t('whenReload')}</Text>
 
-        {FREQUENCY_OPTIONS.map((opt) => (
+        {([
+          { key: 'weekly' as Frequency, labelKey: 'weekly' as const },
+          { key: 'biweekly' as Frequency, labelKey: 'biweekly' as const },
+          { key: 'monthly' as Frequency, labelKey: 'monthly' as const },
+        ]).map((opt) => (
           <TouchableOpacity
             key={opt.key}
             style={[
               styles.card,
+              { borderColor: colors.border },
               selected === opt.key && styles.cardSelected,
             ]}
             onPress={() => setSelected(opt.key)}
@@ -78,18 +81,11 @@ export default function SetResetDateScreen({ navigation, route }: Props) {
             <Text
               style={[
                 styles.cardLabel,
+                { color: colors.text },
                 selected === opt.key && styles.cardLabelSelected,
               ]}
             >
-              {opt.label}
-            </Text>
-            <Text
-              style={[
-                styles.cardSublabel,
-                selected === opt.key && styles.cardSublabelSelected,
-              ]}
-            >
-              {opt.sublabel}
+              {t(opt.labelKey)}
             </Text>
           </TouchableOpacity>
         ))}
@@ -102,7 +98,7 @@ export default function SetResetDateScreen({ navigation, route }: Props) {
         activeOpacity={0.8}
       >
         <Text style={styles.buttonText}>
-          {loading ? 'Loading...' : 'Simulan na!'}
+          {loading ? t('loading') : t('letsStart')}
         </Text>
       </TouchableOpacity>
     </View>
@@ -112,7 +108,6 @@ export default function SetResetDateScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.white,
     paddingHorizontal: 32,
     paddingBottom: 48,
   },
@@ -123,13 +118,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: Colors.dark,
     marginBottom: 32,
     textAlign: 'center',
   },
   card: {
     borderWidth: 2,
-    borderColor: Colors.border,
     borderRadius: 12,
     paddingVertical: 18,
     paddingHorizontal: 20,
@@ -143,14 +136,12 @@ const styles = StyleSheet.create({
   cardLabel: {
     fontSize: 18,
     fontWeight: '600',
-    color: Colors.dark,
   },
   cardLabelSelected: {
     color: Colors.purple,
   },
   cardSublabel: {
     fontSize: 14,
-    color: Colors.gray,
     marginTop: 4,
   },
   cardSublabelSelected: {

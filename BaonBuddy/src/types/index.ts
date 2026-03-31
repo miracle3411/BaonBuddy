@@ -37,8 +37,11 @@ export interface SavingsGoal {
   isCompleted: boolean;
 }
 
+export type Language = 'fil' | 'en';
+
 export interface AppSettings {
   currency: string;              // default "₱"
+  language: Language;             // default "fil"
   darkMode: 'auto' | 'light' | 'dark';
   dailyReminderEnabled: boolean;
   dailyReminderTime: string;     // "20:00"

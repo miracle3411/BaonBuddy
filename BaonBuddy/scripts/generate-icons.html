@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Baon Buddy Icon Generator</title>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+    canvas { border: 1px solid #ccc; margin: 10px; }
+    .row { display: flex; gap: 20px; flex-wrap: wrap; }
+    button { padding: 10px 20px; background: #534AB7; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 10px 5px; }
+    h2 { color: #534AB7; }
+  </style>
+</head>
+<body>
+  <h1>Baon Buddy — Icon Generator</h1>
+  <p>Click the buttons below to download each icon.</p>
+
+  <h2>App Icon (1024x1024)</h2>
+  <div class="row">
+    <canvas id="icon" width="1024" height="1024"></canvas>
+  </div>
+  <button onclick="download('icon', 'icon.png')">Download icon.png</button>
+
+  <h2>Adaptive Icon Foreground (1024x1024)</h2>
+  <div class="row">
+    <canvas id="adaptive" width="1024" height="1024"></canvas>
+  </div>
+  <button onclick="download('adaptive', 'adaptive-icon.png')">Download adaptive-icon.png</button>
+
+  <h2>Splash Icon (200x200)</h2>
+  <div class="row">
+    <canvas id="splash" width="200" height="200"></canvas>
+  </div>
+  <button onclick="download('splash', 'splash-icon.png')">Download splash-icon.png</button>
+
+  <script>
+    const PURPLE = '#534AB7';
+    const WHITE = '#FFFFFF';
+
+    function drawIcon(canvasId, size, withBg) {
+      const c = document.getElementById(canvasId);
+      const ctx = c.getContext('2d');
+
+      // Background
+      if (withBg) {
+        ctx.fillStyle = PURPLE;
+        if (canvasId === 'icon') {
+          // Rounded rect for app icon
+          roundRect(ctx, 0, 0, size, size, size * 0.2);
+          ctx.fill();
+        } else {
+          ctx.fillRect(0, 0, size, size);
+        }
+      } else {
+        ctx.clearRect(0, 0, size, size);
+      }
+
+      // Coin circle
+      const cx = size / 2;
+      const cy = size * 0.42;
+      const r = size * 0.22;
+
+      // Coin shadow
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.beginPath();
+      ctx.ellipse(cx + size*0.01, cy + size*0.02, r, r, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Coin body (gold)
+      const grad = ctx.createRadialGradient(cx - r*0.3, cy - r*0.3, r*0.1, cx, cy, r);
+      grad.addColorStop(0, '#FFD700');
+      grad.addColorStop(0.7, '#F5B800');
+      grad.addColorStop(1, '#D4A000');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Coin inner ring
+      ctx.strokeStyle = '#D4A000';
+      ctx.lineWidth = size * 0.008;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.82, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Peso sign on coin
+      ctx.fillStyle = '#8B6914';
+      ctx.font = `bold ${size * 0.22}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('₱', cx, cy + size*0.01);
+
+      // App name
+      ctx.fillStyle = WHITE;
+      ctx.font = `bold ${size * 0.1}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.fillText('Baon', cx, cy + r + size * 0.1);
+      ctx.fillText('Buddy', cx, cy + r + size * 0.2);
+    }
+
+    function roundRect(ctx, x, y, w, h, radius) {
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.lineTo(x + w - radius, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + radius);
+      ctx.lineTo(x + w, y + h - radius);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - radius, y + h);
+      ctx.lineTo(x + radius, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - radius);
+      ctx.lineTo(x, y + radius);
+      ctx.quadraticCurveTo(x, y, x + radius, y);
+      ctx.closePath();
+    }
+
+    function download(canvasId, filename) {
+      const c = document.getElementById(canvasId);
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = c.toDataURL('image/png');
+      link.click();
+    }
+
+    // Draw all icons
+    drawIcon('icon', 1024, true);
+    drawIcon('adaptive', 1024, true);
+    drawIcon('splash', 200, true);
+  </script>
+</body>
+</html>
