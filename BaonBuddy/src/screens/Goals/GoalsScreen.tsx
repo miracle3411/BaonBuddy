@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
 import { SavingsGoal } from '../../types';
 import { getGoals, updateGoal } from '../../storage/storage';
@@ -24,6 +25,7 @@ type Props = { navigation: any };
 export default function GoalsScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
   const [goals, setGoals] = useState<SavingsGoal[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCompleted, setShowCompleted] = useState(false);
@@ -182,7 +184,7 @@ export default function GoalsScreen({ navigation }: Props) {
       )}
 
       {/* New Goal button */}
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(24, insets.bottom + 16) }]}>
         <TouchableOpacity
           style={styles.newGoalButton}
           onPress={() => navigation.navigate('AddGoal')}
@@ -257,7 +259,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   goalCard: {
     borderWidth: 1,

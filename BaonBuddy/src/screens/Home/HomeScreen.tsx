@@ -12,6 +12,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { format, parseISO } from 'date-fns';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
 import { CATEGORIES } from '../../constants/categories';
 import { AllowancePeriod, Expense, BudgetStatus } from '../../types';
@@ -30,6 +31,7 @@ type Props = { navigation: any };
 export default function HomeScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const { t, lang } = useLanguage();
+  const insets = useSafeAreaInsets();
   const shareRef = useRef<View>(null) as React.RefObject<View>;
   const [period, setPeriod] = useState<AllowancePeriod | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -260,7 +262,7 @@ export default function HomeScreen({ navigation }: Props) {
 
       {/* FAB */}
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { bottom: 90 + (insets.bottom > 0 ? insets.bottom : 0) }]}
         onPress={() => navigation.navigate('AddExpense')}
         activeOpacity={0.8}
       >
@@ -268,7 +270,7 @@ export default function HomeScreen({ navigation }: Props) {
       </TouchableOpacity>
 
       {/* AdBanner */}
-      <View style={styles.adBannerWrap}>
+      <View style={[styles.adBannerWrap, { bottom: insets.bottom > 0 ? insets.bottom : 0 }]}>
         <AdBanner />
       </View>
 

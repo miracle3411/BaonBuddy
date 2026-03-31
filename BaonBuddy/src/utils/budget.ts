@@ -24,12 +24,15 @@ export function calculateBudgetStatus(
   const totalDays = differenceInCalendarDays(endDate, parseISO(period.startDate)) + 1;
   const expectedSpentRatio = daysElapsed / totalDays;
   const actualSpentRatio = totalSpent / period.amount;
-  const ratio = expectedSpentRatio > 0 ? actualSpentRatio / expectedSpentRatio : 0;
+  // If no days have elapsed yet but money was spent, treat as overpacing
+  const ratio = expectedSpentRatio > 0
+    ? actualSpentRatio / expectedSpentRatio
+    : (actualSpentRatio > 0 ? Infinity : 0);
 
   let meterStatus: 'green' | 'yellow' | 'red';
-  if (totalSpent >= period.amount) {
+  if (totalSpent >= period.amount || percentUsed >= 90) {
     meterStatus = 'red';
-  } else if (ratio > 1.15) {
+  } else if (ratio > 1.15 || percentUsed >= 75) {
     meterStatus = 'yellow';
   } else {
     meterStatus = 'green';

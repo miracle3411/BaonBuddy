@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
 import { CATEGORIES } from '../../constants/categories';
 import { ExpenseCategory, Expense } from '../../types';
@@ -29,6 +30,7 @@ function generateId(): string {
 export default function AddExpenseScreen({ navigation, route }: Props) {
   const { colors } = useTheme();
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
   const editExpense = route.params?.expense as Expense | undefined;
   const isEdit = !!editExpense;
 
@@ -184,7 +186,7 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
       </ScrollView>
 
       {/* Save + Delete buttons */}
-      <View style={[styles.bottomBar, { backgroundColor: colors.background, borderTopColor: colors.border }]}>
+      <View style={[styles.bottomBar, { backgroundColor: colors.background, borderTopColor: colors.border, paddingBottom: Math.max(32, insets.bottom + 16) }]}>
         <TouchableOpacity
           style={[styles.saveButton, (!isValid || saving) && styles.saveButtonDisabled]}
           onPress={handleSave}

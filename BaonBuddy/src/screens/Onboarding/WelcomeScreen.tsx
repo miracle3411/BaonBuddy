@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Colors } from '../../constants/colors';
 import { useTheme } from '../../hooks/useTheme';
@@ -14,7 +14,7 @@ export default function WelcomeScreen({ navigation }: Props) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.content}>
-        <Text style={styles.emoji}>💰</Text>
+        <Image source={require('../../../assets/icon.png')} style={styles.icon} />
         <Text style={styles.title}>Baon Buddy</Text>
         <Text style={[styles.tagline, { color: colors.textSecondary }]}>
           {t('welcomeTagline')}
@@ -44,8 +44,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  emoji: {
-    fontSize: 80,
+  icon: {
+    width: 120,
+    height: 120,
+    borderRadius: 24,
     marginBottom: 16,
   },
   title: {

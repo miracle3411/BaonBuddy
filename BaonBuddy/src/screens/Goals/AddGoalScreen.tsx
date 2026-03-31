@@ -10,6 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
 import { addGoal } from '../../storage/storage';
 import { SavingsGoal } from '../../types';
@@ -25,6 +26,7 @@ function generateId(): string {
 export default function AddGoalScreen({ navigation }: Props) {
   const { colors } = useTheme();
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState('');
   const [amount, setAmount] = useState('');
   const [saving, setSaving] = useState(false);
@@ -85,7 +87,7 @@ export default function AddGoalScreen({ navigation }: Props) {
         </View>
       </View>
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(32, insets.bottom + 16) }]}>
         <TouchableOpacity
           style={[styles.saveButton, (!isValid || saving) && styles.saveButtonDisabled]}
           onPress={handleSave}

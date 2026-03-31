@@ -137,7 +137,7 @@ const translations = {
   },
   goalCompleteSub: { fil: 'natapos na!', en: 'completed!' },
   completed: { fil: 'Natapos na', en: 'Completed' },
-  newGoal: { fil: '+ Bagong Goal', en: '+ New Goal' },
+  newGoal: { fil: 'Bagong Goal', en: 'New Goal' },
   goalName: { fil: 'Pangalan ng goal mo', en: 'Goal name' },
   targetAmount: { fil: 'Target na halaga', en: 'Target amount' },
   saveGoal: { fil: 'I-save ang Goal', en: 'Save Goal' },
