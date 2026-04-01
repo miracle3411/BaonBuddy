@@ -170,7 +170,7 @@ function AppContent() {
     // Configure RevenueCat (only if native module available)
     try {
       if (Purchases) {
-        const REVENUECAT_GOOGLE_KEY = 'test_zErSzrKALOdeWQJRdVnFimSmrZL';
+        const REVENUECAT_GOOGLE_KEY = 'goog_dOEyCwYpORCfJhOMaLEtjnvcgcX';
         Purchases.configure({ apiKey: REVENUECAT_GOOGLE_KEY });
       }
     } catch {
