@@ -12,7 +12,7 @@ const KEYS = {
 // Default settings for first-time users
 const DEFAULT_SETTINGS: AppSettings = {
   currency: '₱',
-  language: 'fil',
+  language: 'en',
   darkMode: 'auto',
   dailyReminderEnabled: true,
   dailyReminderTime: '20:00',

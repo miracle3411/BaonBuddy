@@ -17,6 +17,7 @@ import Constants from 'expo-constants';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { format, parseISO } from 'date-fns';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/colors';
 import { CATEGORIES } from '../../constants/categories';
 import { AppSettings, AllowancePeriod, Expense } from '../../types';
@@ -30,7 +31,7 @@ import {
   savePeriods,
   clearAllData,
 } from '../../storage/storage';
-import { getNextPeriodDates } from '../../utils/budget';
+// getNextPeriodDates removed — frequency edit recalculates inline
 import { useTheme } from '../../hooks/useTheme';
 import { useLanguage } from '../../hooks/useLanguage';
 import { showResetFlow } from '../../utils/resetPeriod';
@@ -43,15 +44,35 @@ import {
 
 type Props = { navigation: any };
 
-const FREQ_LABELS: Record<string, string> = {
-  weekly: 'Weekly',
-  biweekly: 'Biweekly',
-  monthly: 'Monthly',
+const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
+const MINUTES = Array.from({ length: 60 }, (_, i) => i);
+
+function to24Hour(hour: number, minute: number, ampm: 'AM' | 'PM'): string {
+  let h = hour;
+  if (ampm === 'AM' && h === 12) h = 0;
+  if (ampm === 'PM' && h !== 12) h += 12;
+  return `${h.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+}
+
+function from24Hour(time: string): { hour: number; minute: number; ampm: 'AM' | 'PM' } {
+  const [hStr, mStr] = time.split(':');
+  let h = parseInt(hStr, 10);
+  const minute = parseInt(mStr, 10);
+  const ampm: 'AM' | 'PM' = h >= 12 ? 'PM' : 'AM';
+  if (h === 0) h = 12;
+  else if (h > 12) h -= 12;
+  return { hour: h, minute, ampm };
+}
+
+const FREQ_KEYS: Record<string, any> = {
+  weekly: 'weekly',
+  biweekly: 'biweekly',
+  monthly: 'monthly',
 };
 
 export default function SettingsScreen({ navigation }: Props) {
   const { colors, reload: reloadTheme } = useTheme();
-  const { t, setLang, reload: reloadLang } = useLanguage();
+  const { t, lang, setLang, reload: reloadLang } = useLanguage();
   const [settings, setSettingsState] = useState<AppSettings | null>(null);
   const [period, setPeriod] = useState<AllowancePeriod | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -59,6 +80,12 @@ export default function SettingsScreen({ navigation }: Props) {
   const [editing, setEditing] = useState(false);
   const [editAmount, setEditAmount] = useState('');
   const [editFrequency, setEditFrequency] = useState<'weekly' | 'biweekly' | 'monthly'>('weekly');
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [pickerHour, setPickerHour] = useState(8);
+  const [pickerMinute, setPickerMinute] = useState(0);
+  const [pickerAmPm, setPickerAmPm] = useState<'AM' | 'PM'>('PM');
+  const [showHourList, setShowHourList] = useState(false);
+  const [showMinuteList, setShowMinuteList] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -83,41 +110,56 @@ export default function SettingsScreen({ navigation }: Props) {
   }
 
   async function updateSetting(partial: Partial<AppSettings>) {
+    // Update local state immediately (optimistic), then persist
+    const updated = { ...settings!, ...partial };
+    setSettingsState(updated);
     try {
       await saveSettings(partial);
-      const updated = { ...settings!, ...partial };
-      setSettingsState(updated);
     } catch {
+      // Revert on failure
+      setSettingsState(settings);
       Alert.alert(t('error'), t('settingSaveError'));
     }
   }
 
   async function handleToggleDailyReminder(value: boolean) {
+    const updated = { ...settings!, dailyReminderEnabled: value };
+    setSettingsState(updated);
     try {
-      await updateSetting({ dailyReminderEnabled: value });
+      await saveSettings({ dailyReminderEnabled: value });
       if (value) {
         await scheduleDailyReminder(settings!.dailyReminderTime);
       } else {
         await cancelDailyReminder();
       }
     } catch {
+      setSettingsState(settings);
       Alert.alert(t('error'), t('reminderError'));
     }
   }
 
   async function handleToggleOverspendAlert(value: boolean) {
-    await updateSetting({ overspendAlertEnabled: value });
+    const updated = { ...settings!, overspendAlertEnabled: value };
+    setSettingsState(updated);
+    try {
+      await saveSettings({ overspendAlertEnabled: value });
+    } catch {
+      setSettingsState(settings);
+    }
   }
 
   async function handleToggleResetReminder(value: boolean) {
+    const updated = { ...settings!, resetReminderEnabled: value };
+    setSettingsState(updated);
     try {
-      await updateSetting({ resetReminderEnabled: value });
+      await saveSettings({ resetReminderEnabled: value });
       if (value && period) {
         await scheduleResetReminder(period.endDate);
       } else {
         await cancelResetReminder();
       }
     } catch {
+      setSettingsState(settings);
       Alert.alert(t('error'), t('reminderError'));
     }
   }
@@ -153,7 +195,7 @@ export default function SettingsScreen({ navigation }: Props) {
         const cat = CATEGORIES.find((c) => c.key === e.category);
         return `<tr>
           <td>${e.date}</td>
-          <td>${cat?.label ?? e.category}</td>
+          <td>${cat ? t(cat.labelKey) : e.category}</td>
           <td>₱${e.amount.toFixed(2)}</td>
           <td>${e.note}</td>
         </tr>`;
@@ -161,8 +203,8 @@ export default function SettingsScreen({ navigation }: Props) {
 
       const html = `
         <html><body>
-        <h1>Baon Buddy — Expense Report</h1>
-        <p>Exported: ${new Date().toISOString().split('T')[0]}</p>
+        <h1>${t('expenseReport')}</h1>
+        <p>${t('exported')} ${new Date().toISOString().split('T')[0]}</p>
         <table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%">
           <tr><th>Date</th><th>Category</th><th>Amount</th><th>Note</th></tr>
           ${rows.join('')}
@@ -212,16 +254,27 @@ export default function SettingsScreen({ navigation }: Props) {
 
     try {
       const frequencyChanged = editFrequency !== period.frequency;
-      const newDates = frequencyChanged
-        ? getNextPeriodDates(editFrequency, parseISO(period.startDate))
-        : { startDate: period.startDate, endDate: period.endDate };
+      let newEndDate = period.endDate;
+      if (frequencyChanged) {
+        // Keep the same startDate, only recalculate endDate from it
+        const start = parseISO(period.startDate);
+        const end = new Date(start);
+        if (editFrequency === 'weekly') {
+          end.setDate(end.getDate() + 6);
+        } else if (editFrequency === 'biweekly') {
+          end.setDate(end.getDate() + 13);
+        } else {
+          end.setMonth(end.getMonth() + 1);
+          end.setDate(0);
+        }
+        newEndDate = end.toISOString().split('T')[0];
+      }
 
       const updatedPeriod: AllowancePeriod = {
         ...period,
         amount: newAmount,
         frequency: editFrequency,
-        startDate: newDates.startDate,
-        endDate: newDates.endDate,
+        endDate: newEndDate,
       };
 
       const allPeriods = await getPeriods();
@@ -233,7 +286,7 @@ export default function SettingsScreen({ navigation }: Props) {
       setEditing(false);
 
       if (frequencyChanged) {
-        await scheduleResetReminder(newDates.endDate);
+        await scheduleResetReminder(newEndDate);
       }
     } catch {
       Alert.alert(t('error'), t('editSaveError'));
@@ -244,7 +297,7 @@ export default function SettingsScreen({ navigation }: Props) {
     if (!period) return;
     showResetFlow(period, expenses, () => {
       loadAll();
-    });
+    }, lang);
   }
 
   if (loading || !settings) {
@@ -273,7 +326,7 @@ export default function SettingsScreen({ navigation }: Props) {
             <>
               <Text style={[styles.cardText, { color: colors.text }]}>
                 {format(parseISO(period.startDate), 'MMM d')} –{' '}
-                {format(parseISO(period.endDate), 'MMM d')} ({FREQ_LABELS[period.frequency]}, ₱
+                {format(parseISO(period.endDate), 'MMM d')} ({t(FREQ_KEYS[period.frequency])}, ₱
                 {period.amount.toFixed(2)})
               </Text>
               <View style={styles.baonActions}>
@@ -315,7 +368,7 @@ export default function SettingsScreen({ navigation }: Props) {
                         editFrequency === freq && styles.freqOptionTextActive,
                       ]}
                     >
-                      {FREQ_LABELS[freq]}
+                      {t(FREQ_KEYS[freq])}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -326,10 +379,10 @@ export default function SettingsScreen({ navigation }: Props) {
                   style={styles.cancelButton}
                   onPress={() => setEditing(false)}
                 >
-                  <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>Cancel</Text>
+                  <Text style={[styles.cancelButtonText, { color: colors.textSecondary }]}>{t('cancel')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.saveButton} onPress={handleSaveEdit}>
-                  <Text style={styles.saveButtonText}>I-save</Text>
+                  <Text style={styles.saveButtonText}>{t('save')}</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -353,22 +406,120 @@ export default function SettingsScreen({ navigation }: Props) {
           />
         </View>
         {settings.dailyReminderEnabled && (
-          <View style={styles.timeRow}>
-            <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>Time:</Text>
-            <TextInput
-              style={[styles.timeInput, { color: colors.text, borderColor: colors.border }]}
-              value={settings.dailyReminderTime}
-              onChangeText={async (val) => {
-                await updateSetting({ dailyReminderTime: val });
-                if (/^\d{2}:\d{2}$/.test(val)) {
-                  await scheduleDailyReminder(val);
+          <>
+            <TouchableOpacity
+              style={[styles.timeDropdown, { borderColor: colors.border }]}
+              onPress={() => {
+                if (!showTimePicker) {
+                  const parsed = from24Hour(settings.dailyReminderTime);
+                  setPickerHour(parsed.hour);
+                  setPickerMinute(parsed.minute);
+                  setPickerAmPm(parsed.ampm);
+                  setShowHourList(false);
+                  setShowMinuteList(false);
                 }
+                setShowTimePicker(!showTimePicker);
               }}
-              placeholder="20:00"
-              placeholderTextColor={colors.border}
-              keyboardType="numbers-and-punctuation"
-            />
-          </View>
+            >
+              <Text style={[styles.timeLabel, { color: colors.textSecondary }]}>{t('time')}</Text>
+              <Text style={[styles.timeValue, { color: colors.text }]}>
+                {(() => { const p = from24Hour(settings.dailyReminderTime); return `${p.hour}:${p.minute.toString().padStart(2, '0')} ${p.ampm}`; })()}
+              </Text>
+              <Ionicons
+                name={showTimePicker ? 'chevron-up' : 'chevron-down'}
+                size={18}
+                color={colors.textSecondary}
+              />
+            </TouchableOpacity>
+            {showTimePicker && (
+              <View style={[styles.timePickerContainer, { borderColor: colors.border }]}>
+                {/* Hour / Minute / AM-PM row */}
+                <View style={styles.timePickerRow}>
+                  {/* Hour dropdown */}
+                  <View style={styles.timePickerColumn}>
+                    <Text style={[styles.timePickerLabel, { color: colors.textSecondary }]}>{t('hour')}</Text>
+                    <TouchableOpacity
+                      style={[styles.timePickerSelect, { borderColor: colors.border }]}
+                      onPress={() => { setShowHourList(!showHourList); setShowMinuteList(false); }}
+                    >
+                      <Text style={[styles.timePickerSelectText, { color: colors.text }]}>{pickerHour}</Text>
+                      <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                    {showHourList && (
+                      <ScrollView style={[styles.timePickerList, { borderColor: colors.border }]} nestedScrollEnabled>
+                        {HOURS.map((h) => (
+                          <TouchableOpacity
+                            key={h}
+                            style={[styles.timePickerItem, pickerHour === h && { backgroundColor: Colors.purpleLight }]}
+                            onPress={() => { setPickerHour(h); setShowHourList(false); }}
+                          >
+                            <Text style={[styles.timePickerItemText, { color: colors.text }, pickerHour === h && { color: Colors.purple, fontWeight: '700' }]}>{h}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    )}
+                  </View>
+
+                  {/* Minute dropdown */}
+                  <View style={styles.timePickerColumn}>
+                    <Text style={[styles.timePickerLabel, { color: colors.textSecondary }]}>{t('minute')}</Text>
+                    <TouchableOpacity
+                      style={[styles.timePickerSelect, { borderColor: colors.border }]}
+                      onPress={() => { setShowMinuteList(!showMinuteList); setShowHourList(false); }}
+                    >
+                      <Text style={[styles.timePickerSelectText, { color: colors.text }]}>{pickerMinute.toString().padStart(2, '0')}</Text>
+                      <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                    {showMinuteList && (
+                      <ScrollView style={[styles.timePickerList, { borderColor: colors.border }]} nestedScrollEnabled>
+                        {MINUTES.map((m) => (
+                          <TouchableOpacity
+                            key={m}
+                            style={[styles.timePickerItem, pickerMinute === m && { backgroundColor: Colors.purpleLight }]}
+                            onPress={() => { setPickerMinute(m); setShowMinuteList(false); }}
+                          >
+                            <Text style={[styles.timePickerItemText, { color: colors.text }, pickerMinute === m && { color: Colors.purple, fontWeight: '700' }]}>{m.toString().padStart(2, '0')}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                    )}
+                  </View>
+
+                  {/* AM/PM toggle */}
+                  <View style={styles.timePickerColumn}>
+                    <Text style={[styles.timePickerLabel, { color: colors.textSecondary }]}>  </Text>
+                    <View style={styles.ampmContainer}>
+                      <TouchableOpacity
+                        style={[styles.ampmButton, pickerAmPm === 'AM' && styles.ampmButtonActive]}
+                        onPress={() => setPickerAmPm('AM')}
+                      >
+                        <Text style={[styles.ampmText, pickerAmPm === 'AM' && styles.ampmTextActive]}>AM</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.ampmButton, pickerAmPm === 'PM' && styles.ampmButtonActive]}
+                        onPress={() => setPickerAmPm('PM')}
+                      >
+                        <Text style={[styles.ampmText, pickerAmPm === 'PM' && styles.ampmTextActive]}>PM</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Save button */}
+                <TouchableOpacity
+                  style={styles.timePickerSave}
+                  onPress={async () => {
+                    const time24 = to24Hour(pickerHour, pickerMinute, pickerAmPm);
+                    await updateSetting({ dailyReminderTime: time24 });
+                    await scheduleDailyReminder(time24);
+                    setShowTimePicker(false);
+                  }}
+                >
+                  <Text style={styles.timePickerSaveText}>{t('setTime')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
         )}
         <View style={styles.toggleRow}>
           <Text style={[styles.toggleLabel, { color: colors.text }]}>{t('overspendAlert')}</Text>
@@ -635,25 +786,8 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '500',
   },
-  timeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingLeft: 8,
-    gap: 8,
-  },
   timeLabel: {
     fontSize: 14,
-  },
-  timeInput: {
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    fontSize: 15,
-    fontWeight: '600',
-    width: 70,
-    textAlign: 'center',
   },
   segmented: {
     flexDirection: 'row',
@@ -721,5 +855,105 @@ const styles = StyleSheet.create({
   },
   aboutValue: {
     fontSize: 15,
+  },
+  timeDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  timeValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    flex: 1,
+  },
+  timePickerContainer: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  timePickerRow: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  timePickerColumn: {
+    flex: 1,
+  },
+  timePickerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  timePickerSelect: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  timePickerSelectText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  timePickerList: {
+    borderWidth: 1,
+    borderRadius: 8,
+    marginTop: 4,
+    maxHeight: 150,
+  },
+  timePickerItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  timePickerItemText: {
+    fontSize: 15,
+    textAlign: 'center',
+  },
+  ampmContainer: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  ampmButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  ampmButtonActive: {
+    backgroundColor: Colors.purple,
+  },
+  ampmText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: Colors.gray,
+  },
+  ampmTextActive: {
+    color: Colors.white,
+    fontWeight: '700',
+  },
+  timePickerSave: {
+    backgroundColor: Colors.purple,
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  timePickerSaveText: {
+    color: Colors.white,
+    fontSize: 15,
+    fontWeight: '600',
   },
 });

@@ -39,6 +39,7 @@ const translations = {
     en: 'You have exceeded your budget!',
   },
   overBudgetBy: { fil: 'over budget.', en: 'over budget.' },
+  overspendAlertTitle: { fil: 'Sobra na ang gastos! ⚠️', en: 'Overspending! ⚠️' },
   streakLabel: { fil: '-day streak — on budget!', en: '-day streak — on budget!' },
   todayExpenses: { fil: 'Gastos Ngayon', en: "Today's Expenses" },
   noExpensesToday: {
@@ -58,6 +59,18 @@ const translations = {
     fil: 'Hindi ma-share ang summary.',
     en: 'Could not share the summary.',
   },
+
+  // ── Screen Titles ──
+  newExpense: { fil: 'Bagong Gastos', en: 'New Expense' },
+  editExpense: { fil: 'I-edit ang Gastos', en: 'Edit Expense' },
+
+  // ── Categories ──
+  catPagkain: { fil: 'Pagkain', en: 'Food' },
+  catPamasahe: { fil: 'Pamasahe', en: 'Transport' },
+  catSupplies: { fil: 'Supplies', en: 'Supplies' },
+  catLoad: { fil: 'Load/Data', en: 'Load/Data' },
+  catLibre: { fil: 'Libre', en: 'Treat' },
+  catIbaPa: { fil: 'Iba pa', en: 'Others' },
 
   // ── Add Expense ──
   categoryLabel: { fil: 'Kategorya', en: 'Category' },
@@ -138,6 +151,14 @@ const translations = {
   goalCompleteSub: { fil: 'natapos na!', en: 'completed!' },
   completed: { fil: 'Natapos na', en: 'Completed' },
   newGoal: { fil: 'Bagong Goal', en: 'New Goal' },
+  editGoal: { fil: 'I-edit ang Goal', en: 'Edit Goal' },
+  deleteGoal: { fil: 'I-delete ang Goal', en: 'Delete Goal' },
+  deleteGoalConfirm: {
+    fil: 'Sigurado ka bang gusto mong i-delete ang goal na ito?',
+    en: 'Are you sure you want to delete this goal?',
+  },
+  editGoalName: { fil: 'Pangalan ng goal', en: 'Goal name' },
+  editGoalTarget: { fil: 'Target na halaga', en: 'Target amount' },
   goalName: { fil: 'Pangalan ng goal mo', en: 'Goal name' },
   targetAmount: { fil: 'Target na halaga', en: 'Target amount' },
   saveGoal: { fil: 'I-save ang Goal', en: 'Save Goal' },
@@ -152,6 +173,13 @@ const translations = {
   noPeriod: { fil: 'Walang active na period.', en: 'No active period.' },
   edit: { fil: 'I-edit', en: 'Edit' },
   resetPeriod: { fil: 'I-reset ang period', en: 'Reset period' },
+  periodEnded: { fil: 'Panahon na lumipas', en: 'Period ended' },
+  totalExpenses: { fil: 'Kabuuang gastos', en: 'Total spent' },
+  youSaved: { fil: 'Natipid mo', en: 'You saved' },
+  youOverspent: { fil: 'Sobra ka ng', en: 'You overspent by' },
+  notNow: { fil: 'Hindi', en: 'Not now' },
+  startNewPeriod: { fil: 'Magsimula ng bago', en: 'Start new period' },
+  resetError: { fil: 'Hindi mai-reset. Subukan ulit.', en: 'Could not reset. Try again.' },
   editAmount: { fil: 'Halaga ng baon', en: 'Allowance amount' },
   frequency: { fil: 'Frequency', en: 'Frequency' },
   notifications: { fil: 'NOTIFICATIONS', en: 'NOTIFICATIONS' },
@@ -226,8 +254,8 @@ const translations = {
   perMonth: { fil: '/ buwan', en: '/ month' },
   freeTrial: { fil: '14-day free trial', en: '14-day free trial' },
   tryFree: {
-    fil: 'Subukan nang Libre — 14 Araw',
-    en: 'Try Free — 14 Days',
+    fil: 'Mag-subscribe na — ₱25/buwan',
+    en: 'Subscribe now — ₱25/month',
   },
   restorePurchase: {
     fil: 'I-restore ang purchase',
@@ -269,6 +297,41 @@ const translations = {
     en: 'We could not find a Pro subscription on your account.',
   },
 
+  // ── Notifications ──
+  notifDailyTitle: { fil: 'Baon Buddy', en: 'Baon Buddy' },
+  notifDailyBody: {
+    fil: 'Huwag kalimutang i-log ang gastos mo ngayon! 📝',
+    en: "Don't forget to log your expenses today! 📝",
+  },
+  notifResetTitle: { fil: 'Baon Buddy', en: 'Baon Buddy' },
+  notifResetBody: {
+    fil: 'Bukas na ang huling araw ng iyong baon period. Handa ka na bang mag-reset?',
+    en: 'Tomorrow is the last day of your allowance period. Ready to reset?',
+  },
+  notifOverspendTitle: { fil: 'Sobra na ang gastos! ⚠️', en: 'Overspending! ⚠️' },
+  notifOverspendBody: {
+    fil: (amount: string) => `₱${amount} na ang gastos mo. Mag-ingat na.`,
+    en: (amount: string) => `You've spent ₱${amount}. Be careful.`,
+  },
+  notifStreakTitle: {
+    fil: (days: number) => `🔥 ${days}-day streak!`,
+    en: (days: number) => `🔥 ${days}-day streak!`,
+  },
+  notifStreakBody: {
+    fil: (days: number) => `${days} araw ka nang nasa budget. Galing mo!`,
+    en: (days: number) => `${days} days on budget. Great job!`,
+  },
+
+  // ── Misc UI ──
+  addTo: { fil: 'Dagdagan ang', en: 'Add to' },
+  goalPlaceholder: { fil: 'hal. Nike shoes, Concert ticket', en: 'e.g. Nike shoes, Concert ticket' },
+  expenseReport: { fil: 'Baon Buddy — Expense Report', en: 'Baon Buddy — Expense Report' },
+  exported: { fil: 'Na-export:', en: 'Exported:' },
+  setTime: { fil: 'I-set ang Oras', en: 'Set Time' },
+  hour: { fil: 'Oras', en: 'Hour' },
+  minute: { fil: 'Min', en: 'Min' },
+  time: { fil: 'Oras:', en: 'Time:' },
+
   // ── Share Summary ──
   totalSpent: { fil: 'Kabuuang gastos', en: 'Total spent' },
   breakdown: { fil: 'Breakdown', en: 'Breakdown' },
@@ -299,7 +362,10 @@ export function t(key: TranslationKey, lang: Language): string {
 // For dynamic translations with functions
 export function tFn(key: 'allDaysOnBudget', lang: Language): (n: number) => string;
 export function tFn(key: 'someDaysOnBudget', lang: Language): (x: number, y: number) => string;
-export function tFn(key: string, lang: Language): (...args: number[]) => string {
+export function tFn(key: 'notifOverspendBody', lang: Language): (amount: string) => string;
+export function tFn(key: 'notifStreakTitle', lang: Language): (days: number) => string;
+export function tFn(key: 'notifStreakBody', lang: Language): (days: number) => string;
+export function tFn(key: string, lang: Language): (...args: any[]) => string {
   const entry = (translations as any)[key];
   if (!entry) return () => key;
   return entry[lang];

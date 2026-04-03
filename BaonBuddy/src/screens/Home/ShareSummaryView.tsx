@@ -83,7 +83,7 @@ const ShareSummaryView = forwardRef<View, Props>(({ period, expenses, lang = 'fi
         return (
           <View key={c.key} style={styles.catRow}>
             <Text style={styles.catLabel}>
-              {c.emoji} {c.label}
+              {c.emoji} {t(c.labelKey)}
             </Text>
             <View style={styles.barTrack}>
               <View

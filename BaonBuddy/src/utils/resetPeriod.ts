@@ -1,9 +1,10 @@
 import { Alert } from 'react-native';
 import { format, parseISO } from 'date-fns';
-import { AllowancePeriod, Expense } from '../types';
+import { AllowancePeriod, Expense, Language } from '../types';
 import { getPeriods, savePeriods } from '../storage/storage';
 import { calculateBudgetStatus, getNextPeriodDates } from './budget';
 import { scheduleResetReminder } from '../hooks/useNotifications';
+import { t } from '../constants/translations';
 
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2, 9);
@@ -12,7 +13,8 @@ function generateId(): string {
 export function showResetFlow(
   period: AllowancePeriod,
   expenses: Expense[],
-  onComplete: () => void
+  onComplete: () => void,
+  lang: Language = 'en'
 ): void {
   const status = calculateBudgetStatus(period, expenses);
   const saved = period.amount - status.totalSpent;
@@ -20,16 +22,16 @@ export function showResetFlow(
   const endLabel = format(parseISO(period.endDate), 'MMM d');
 
   const summaryLine = saved >= 0
-    ? `Natipid mo: ₱${saved.toFixed(2)}`
-    : `Sobra ka ng ₱${Math.abs(saved).toFixed(2)}`;
+    ? `${t('youSaved', lang)}: ₱${saved.toFixed(2)}`
+    : `${t('youOverspent', lang)} ₱${Math.abs(saved).toFixed(2)}`;
 
   Alert.alert(
-    'Panahon na lumipas',
-    `${startLabel} – ${endLabel}\nKabuuang gastos: ₱${status.totalSpent.toFixed(2)}\n${summaryLine}`,
+    t('periodEnded', lang),
+    `${startLabel} – ${endLabel}\n${t('totalExpenses', lang)}: ₱${status.totalSpent.toFixed(2)}\n${summaryLine}`,
     [
-      { text: 'Hindi', style: 'cancel' },
+      { text: t('notNow', lang), style: 'cancel' },
       {
-        text: 'Magsimula ng bago',
+        text: t('startNewPeriod', lang),
         onPress: async () => {
           try {
             const allPeriods = await getPeriods();
@@ -49,7 +51,7 @@ export function showResetFlow(
             await scheduleResetReminder(endDate);
             onComplete();
           } catch {
-            Alert.alert('Error', 'Hindi mai-reset. Subukan ulit.');
+            Alert.alert('Error', t('resetError', lang));
           }
         },
       },

@@ -83,7 +83,6 @@ export default function UpgradeScreen({ navigation }: any) {
       </View>
 
       <Text style={[styles.price, { color: colors.text }]}>₱25 {t('perMonth')}</Text>
-      <Text style={[styles.trial, { color: Colors.meterGreen }]}>{t('freeTrial')}</Text>
 
       <TouchableOpacity
         style={[styles.purchaseButton, purchasing && styles.buttonDisabled]}

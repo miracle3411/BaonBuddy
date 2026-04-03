@@ -15,7 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
 import { CATEGORIES } from '../../constants/categories';
 import { ExpenseCategory, Expense } from '../../types';
-import { addExpense, updateExpense, deleteExpense, getActivePeriod, getExpensesForPeriod } from '../../storage/storage';
+import { addExpense, updateExpense, deleteExpense, getActivePeriod, getExpensesForPeriod, getSettings } from '../../storage/storage';
 import { calculateBudgetStatus } from '../../utils/budget';
 import { sendOverspendAlert } from '../../hooks/useNotifications';
 import { useTheme } from '../../hooks/useTheme';
@@ -87,7 +87,17 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
         const allExpenses = await getExpensesForPeriod(activePeriod.id);
         const status = calculateBudgetStatus(activePeriod, allExpenses);
         if (status.isOverspending) {
-          await sendOverspendAlert(status.totalSpent);
+          const appSettings = await getSettings();
+          // Show in-app alert always
+          const over = (status.totalSpent - status.totalBudget).toFixed(2);
+          Alert.alert(
+            t('overspendAlertTitle'),
+            `₱${over} ${t('overBudgetBy')}`
+          );
+          // Also send push notification if enabled
+          if (appSettings.overspendAlertEnabled) {
+            await sendOverspendAlert(status.totalSpent);
+          }
         }
       }
 
@@ -160,7 +170,7 @@ export default function AddExpenseScreen({ navigation, route }: Props) {
                     isSelected && { color: cat.color, fontWeight: '700' },
                   ]}
                 >
-                  {cat.label}
+                  {t(cat.labelKey)}
                 </Text>
               </TouchableOpacity>
             );

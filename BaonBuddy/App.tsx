@@ -22,7 +22,7 @@ try {
 import { Colors } from './src/constants/colors';
 import { getSettings } from './src/storage/storage';
 import { ThemeProvider, useTheme } from './src/hooks/useTheme';
-import { LanguageProvider } from './src/hooks/useLanguage';
+import { LanguageProvider, useLanguage } from './src/hooks/useLanguage';
 import { requestPermissions } from './src/hooks/useNotifications';
 
 // Screens
@@ -105,6 +105,7 @@ function TabNavigator() {
 
 function MainNavigator() {
   const { colors } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <RootStack.Navigator>
@@ -117,7 +118,7 @@ function MainNavigator() {
         name="AddExpense"
         component={AddExpenseScreen}
         options={({ route }: any) => ({
-          title: route.params?.expense ? 'I-edit ang Gastos' : 'Bagong Gastos',
+          title: route.params?.expense ? t('editExpense') : t('newExpense'),
           headerTintColor: Colors.purple,
           headerStyle: { backgroundColor: colors.background },
           headerTitleStyle: { color: colors.text },
@@ -128,7 +129,7 @@ function MainNavigator() {
         name="AddGoal"
         component={AddGoalScreen}
         options={{
-          title: 'Bagong Goal',
+          title: t('newGoal'),
           headerTintColor: Colors.purple,
           headerStyle: { backgroundColor: colors.background },
           headerTitleStyle: { color: colors.text },

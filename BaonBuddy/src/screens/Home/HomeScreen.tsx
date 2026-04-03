@@ -165,7 +165,7 @@ export default function HomeScreen({ navigation }: Props) {
             {isPeriodExpired && (
               <TouchableOpacity
                 style={styles.expiredBanner}
-                onPress={() => showResetFlow(period!, expenses, loadData)}
+                onPress={() => showResetFlow(period!, expenses, loadData, lang)}
               >
                 <Text style={styles.expiredText}>
                   {t('periodExpired')}
@@ -245,7 +245,7 @@ export default function HomeScreen({ navigation }: Props) {
               <View style={styles.expenseLeft}>
                 <Text style={styles.expenseEmoji}>{cat?.emoji ?? '📦'}</Text>
                 <View>
-                  <Text style={[styles.expenseCat, { color: colors.text }]}>{cat?.label ?? item.category}</Text>
+                  <Text style={[styles.expenseCat, { color: colors.text }]}>{cat ? t(cat.labelKey) : item.category}</Text>
                   {item.note ? (
                     <Text style={[styles.expenseNote, { color: colors.textSecondary }]}>{item.note}</Text>
                   ) : null}
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 160,
+    paddingBottom: 200,
   },
   periodLabel: {
     fontSize: 14,

@@ -68,7 +68,7 @@ export default function AddGoalScreen({ navigation }: Props) {
           style={[styles.nameInput, { color: colors.text, borderColor: colors.border }]}
           value={name}
           onChangeText={setName}
-          placeholder="e.g. Nike shoes, Concert ticket"
+          placeholder={t('goalPlaceholder')}
           placeholderTextColor={colors.border}
           autoFocus
         />

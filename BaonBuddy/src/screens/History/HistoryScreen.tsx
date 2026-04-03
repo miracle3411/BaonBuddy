@@ -251,7 +251,7 @@ export default function HistoryScreen({ navigation }: Props) {
                 <Text style={styles.expenseEmoji}>{cat?.emoji ?? '📦'}</Text>
                 <View>
                   <Text style={[styles.expenseCat, { color: colors.text }]}>
-                    {cat?.label ?? item.category}
+                    {cat ? t(cat.labelKey) : item.category}
                   </Text>
                   {item.note ? (
                     <Text style={[styles.expenseNote, { color: colors.textSecondary }]}>

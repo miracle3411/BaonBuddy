@@ -90,7 +90,7 @@ export default function AnalyticsScreen({ navigation }: any) {
 
     return CATEGORIES.map((c) => ({
       key: c.key,
-      label: c.label,
+      label: t(c.labelKey),
       emoji: c.emoji,
       color: c.color,
       amount: totals[c.key] ?? 0,

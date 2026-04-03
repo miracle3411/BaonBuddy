@@ -16,7 +16,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../constants/colors';
 import { SavingsGoal } from '../../types';
-import { getGoals, updateGoal } from '../../storage/storage';
+import { getGoals, updateGoal, deleteGoal } from '../../storage/storage';
 import { useTheme } from '../../hooks/useTheme';
 import { useLanguage } from '../../hooks/useLanguage';
 
@@ -34,6 +34,12 @@ export default function GoalsScreen({ navigation }: Props) {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedGoal, setSelectedGoal] = useState<SavingsGoal | null>(null);
   const [contribution, setContribution] = useState('');
+
+  // Edit modal state
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editGoal, setEditGoal] = useState<SavingsGoal | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editTarget, setEditTarget] = useState('');
 
   useFocusEffect(
     useCallback(() => {
@@ -90,6 +96,50 @@ export default function GoalsScreen({ navigation }: Props) {
     }
   }
 
+  function openEditModal(goal: SavingsGoal) {
+    setEditGoal(goal);
+    setEditName(goal.name);
+    setEditTarget(goal.targetAmount.toString());
+    setEditModalVisible(true);
+  }
+
+  async function handleSaveEdit() {
+    if (!editGoal) return;
+    const newTarget = parseFloat(editTarget) || 0;
+    if (editName.trim().length === 0 || newTarget <= 0) return;
+
+    try {
+      const updated: SavingsGoal = {
+        ...editGoal,
+        name: editName.trim(),
+        targetAmount: newTarget,
+        isCompleted: editGoal.savedAmount >= newTarget,
+        completedAt: editGoal.savedAmount >= newTarget
+          ? (editGoal.completedAt ?? new Date().toISOString())
+          : null,
+      };
+      await updateGoal(updated);
+      setEditModalVisible(false);
+      await loadGoals();
+    } catch {
+      Alert.alert(t('error'), t('savingError'));
+    }
+  }
+
+  function handleDeleteGoal(goal: SavingsGoal) {
+    Alert.alert(t('deleteGoal'), t('deleteGoalConfirm'), [
+      { text: t('cancel'), style: 'cancel' },
+      {
+        text: t('delete'),
+        style: 'destructive',
+        onPress: async () => {
+          await deleteGoal(goal.id);
+          await loadGoals();
+        },
+      },
+    ]);
+  }
+
   if (loading) {
     return (
       <View style={[styles.centered, { backgroundColor: colors.background }]}>
@@ -135,12 +185,26 @@ export default function GoalsScreen({ navigation }: Props) {
                 <Text style={[styles.goalRemaining, { color: colors.textSecondary }]}>
                   ₱{remaining.toFixed(2)} {t('moreNeeded')}
                 </Text>
-                <TouchableOpacity
-                  style={styles.addButton}
-                  onPress={() => openContributeModal(item)}
-                >
-                  <Text style={styles.addButtonText}>{t('addAmount')}</Text>
-                </TouchableOpacity>
+                <View style={styles.goalActions}>
+                  <TouchableOpacity
+                    style={[styles.addButton, { flex: 1 }]}
+                    onPress={() => openContributeModal(item)}
+                  >
+                    <Text style={styles.addButtonText}>{t('addAmount')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.goalIconButton}
+                    onPress={() => openEditModal(item)}
+                  >
+                    <Ionicons name="pencil" size={18} color={Colors.purple} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.goalIconButton}
+                    onPress={() => handleDeleteGoal(item)}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={Colors.meterRed} />
+                  </TouchableOpacity>
+                </View>
               </View>
             );
           }}
@@ -168,9 +232,12 @@ export default function GoalsScreen({ navigation }: Props) {
                     >
                       <View style={styles.completedRow}>
                         <Ionicons name="checkmark-circle" size={20} color={Colors.meterGreen} />
-                        <Text style={[styles.goalName, { color: colors.textSecondary, marginLeft: 8 }]}>
+                        <Text style={[styles.goalName, { color: colors.textSecondary, marginLeft: 8, flex: 1 }]}>
                           {g.name}
                         </Text>
+                        <TouchableOpacity onPress={() => handleDeleteGoal(g)}>
+                          <Ionicons name="trash-outline" size={18} color={Colors.meterRed} />
+                        </TouchableOpacity>
                       </View>
                       <Text style={[styles.goalProgress, { color: colors.textSecondary }]}>
                         ₱{g.targetAmount.toFixed(2)}
@@ -200,7 +267,7 @@ export default function GoalsScreen({ navigation }: Props) {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.cardBg }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              Add sa "{selectedGoal?.name}"
+              {t('addTo')} "{selectedGoal?.name}"
             </Text>
             <View style={styles.modalInputRow}>
               <Text style={styles.modalCurrency}>₱</Text>
@@ -219,7 +286,7 @@ export default function GoalsScreen({ navigation }: Props) {
                 style={styles.modalCancel}
                 onPress={() => setModalVisible(false)}
               >
-                <Text style={{ color: colors.textSecondary, fontSize: 16 }}>Hindi</Text>
+                <Text style={{ color: colors.textSecondary, fontSize: 16 }}>{t('cancel')}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[
@@ -230,6 +297,44 @@ export default function GoalsScreen({ navigation }: Props) {
                 disabled={(parseFloat(contribution) || 0) <= 0}
               >
                 <Text style={styles.modalConfirmText}>{t('contribute')}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Goal Modal */}
+      <Modal visible={editModalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.cardBg }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>
+              {t('editGoal')}
+            </Text>
+            <Text style={[styles.editLabel, { color: colors.textSecondary }]}>{t('editGoalName')}</Text>
+            <TextInput
+              style={[styles.editInput, { color: colors.text, borderColor: colors.border }]}
+              value={editName}
+              onChangeText={setEditName}
+            />
+            <Text style={[styles.editLabel, { color: colors.textSecondary, marginTop: 12 }]}>{t('editGoalTarget')}</Text>
+            <TextInput
+              style={[styles.editInput, { color: colors.text, borderColor: colors.border }]}
+              value={editTarget}
+              onChangeText={setEditTarget}
+              keyboardType="numeric"
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.modalCancel}
+                onPress={() => setEditModalVisible(false)}
+              >
+                <Text style={{ color: colors.textSecondary, fontSize: 16 }}>{t('cancel')}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalConfirm}
+                onPress={handleSaveEdit}
+              >
+                <Text style={styles.modalConfirmText}>{t('save')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -398,6 +503,29 @@ const styles = StyleSheet.create({
   modalConfirmText: {
     color: Colors.white,
     fontWeight: '600',
+    fontSize: 16,
+  },
+  goalActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  goalIconButton: {
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    padding: 8,
+  },
+  editLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  editInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     fontSize: 16,
   },
 });
