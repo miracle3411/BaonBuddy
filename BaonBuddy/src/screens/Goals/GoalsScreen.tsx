@@ -489,6 +489,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     gap: 12,
+    marginTop: 20,
   },
   modalCancel: {
     paddingVertical: 10,
